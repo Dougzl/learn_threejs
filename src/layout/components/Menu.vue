@@ -150,6 +150,24 @@ const choose = (index: number) => {
           margin-top: 0.7rem;
           overflow-x: scroll;
 
+          &::-webkit-scrollbar {
+            /*滚动条整体样式*/
+            width: 3px;
+            display: none;
+          }
+
+          &::-webkit-scrollbar-thumb {
+            /*滚动条里面小方块*/
+            // border-radius: 1px;
+            background-color: rgba($color: #cfe3d6, $alpha: 0.4);
+          }
+
+          &::-webkit-scrollbar-track {
+            /*滚动条里面轨道*/
+            // border-radius: 1px;
+            background: transparent;
+          }
+
           span {
             padding: 0.2rem 0.3rem;
             box-sizing: border-box;
