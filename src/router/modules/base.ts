@@ -63,5 +63,14 @@ export const baseRoute: RouteRecordRaw = {
             lesson: "06",
             keys: ["dat.gui"],
         },
+    },{
+        path: "/base/07",
+        name: "base07",
+        component: () => import("@/views/base/base07.vue"),
+        meta: {
+            label: "向量",
+            lesson: "07",
+            keys: ["Vector"],
+        },
     },]
 }
