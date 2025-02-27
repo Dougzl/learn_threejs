@@ -13,6 +13,7 @@
     "@turf/turf": "^6.5.0",
     "dat.gui": "^0.7.9",
     "delaunator": "^5.0.0",
+    "earcut": "^3.0.0",
     "gsap": "^3.11.4",
     "point-in-polygon": "^1.1.0",
     "three": "^0.147.0",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@types/dat.gui": "^0.7.7",
     "@types/delaunator": "^5.0.0",
+    "@types/earcut": "^3.0.0",
     "@types/node": "^18.11.9",
     "@types/nprogress": "0.2.0",
     "@types/three": "^0.146.0",

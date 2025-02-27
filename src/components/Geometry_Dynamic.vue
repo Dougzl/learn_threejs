@@ -145,7 +145,6 @@ const render = (): void => {
     const elapsedTime = clock.getElapsedTime()
     const delta = clock.getDelta()
     const position = geometry.attributes.position // 从几何体中获取 position 属性
-    console.log(position)
     for (let index = 0; index < position.count; index++) {
       const y = 10 * Math.sin(index / 5 + (elapsedTime - index * index / 5))
       position.setY(index, y);
