@@ -9,10 +9,8 @@
 import {onMounted, onUnmounted, ref} from "vue";
 // 导入轨道控制器
 import {MapControls} from 'three/examples/jsm/controls/OrbitControls'
-import earcut from "earcut";
 import {
   AmbientLight,
-  BufferAttribute,
   BufferGeometry, DirectionalLight,
   DoubleSide,
   GridHelper, Line, Line3, LineBasicMaterial,
@@ -23,6 +21,8 @@ import {
   SphereGeometry,
   Spherical, Vector3, WebGLRenderer
 } from "three";
+import {createPlanarGeometry} from "@/utils/tools";
+import {intersect} from "@/utils/intersect";
 // 导入动画库
 const canvasRef = ref()
 
@@ -39,7 +39,7 @@ const initScene = () => {
 // 创建相机
 const initCamera = () => {
   camera = new PerspectiveCamera(75, canvasRef.value.clientWidth / canvasRef.value.clientHeight, 0.1, 100000);
-  camera.position.set(0, 0, 500);
+  camera.position.set(-20, 50, 350);
 }
 
 // 初始化灯光
@@ -181,48 +181,16 @@ const initBall = () => {
 
   const borderMesh = new Mesh(geometry, materialBorder)
   scene.add(borderMesh)
+  // camera.lookAt(borderMesh.position)
 
   // 6. 计算与box交点的连线
-  vertices && calc(vertices)
+  // vertices && calc(vertices)
   vertices2 && calc(vertices2)
-  vertices3 && calc(vertices3)
+  // vertices3 && calc(vertices3)
 }
-
-const index = (points: Vector3[]) => {
-  // 判断是否垂直于 XY 平面
-  const xValues = points.map((p) => p.x);
-  const yValues = points.map((p) => p.y);
-
-  const isPerpendicularToX = new Set(xValues).size === 1;
-  const isPerpendicularToY = new Set(yValues).size === 1;
-  let indices;
-  if (isPerpendicularToX) {
-    indices = earcut(points.reduce((a: number[], b: Vector3) => [...a, b.y, b.z], []));
-  } else if (isPerpendicularToY) {
-    indices = earcut(points.reduce((a: number[], b: Vector3) => [...a, b.x, b.z], []));
-  } else {
-    indices = earcut(points.reduce((a: number[], b: Vector3) => [...a, b.x, b.y], []));
-  }
-  return indices
-}
-
-const generatePlan = (points: Vector3[]): BufferGeometry | any => {
-  const geometry = new BufferGeometry();
-  const positions = new Float32Array(points.length * 3);
-  points.forEach((p, i) => {
-    positions[i * 3] = p.x;
-    positions[i * 3 + 1] = p.y;
-    positions[i * 3 + 2] = p.z;
-  });
-
-  // 提取 x 和 y 坐标，忽略 z 坐标，转换为 earcut 所需的二维数组格式
-  geometry.setAttribute("position", new BufferAttribute(positions, 3));
-  geometry.setIndex(index(points));
-  return geometry;
-};
 
 const initPlane = (vertices: Vector3[]) => {
-  const geometry = generatePlan(vertices)
+  const geometry = createPlanarGeometry(vertices)
   const material = new MeshBasicMaterial({
     color: 0xdddddd,
     side: DoubleSide,
@@ -233,154 +201,28 @@ const initPlane = (vertices: Vector3[]) => {
   scene.add(plane)
 }
 
-// 判断点是否在四边形内
-const isPointInParallelogram = (point: Vector3, vertices: Vector3[]) => {
-  // 这里假设平行四边形的顶点顺序为 A, B, C, D，
-  // 并且 A、B、D 分别是一个角的起点和其相邻的两个顶点
-  const u = new Vector3().subVectors(vertices[1], vertices[0]);
-  const v = new Vector3().subVectors(vertices[3], vertices[0]);
-  const w = new Vector3().subVectors(point, vertices[0]);
+const calc = (vertices: Vector3[]) => {
+  const group: Vector3[][] = intersect(geometry, vertices)
 
-  const uu = u.dot(u);
-  const uv = u.dot(v);
-  const vv = v.dot(v);
-  const wu = w.dot(u);
-  const wv = w.dot(v);
+  const material = new MeshBasicMaterial({
+    color: 0xfff00,
+    side: DoubleSide
+  });
+  const lineMaterial = new LineBasicMaterial({
+    color: 0xfff00,
+  });
 
-  const Ddenom = uu * vv - uv * uv;
-  // 如果 Ddenom 很接近 0 则说明 u 和 v 共线，不构成平行四边形
-  if (Math.abs(Ddenom) < 1e-6) return false;
-
-  const s = (wu * vv - wv * uv) / Ddenom;
-  const t = (wv * uu - wu * uv) / Ddenom;
-
-  return (s >= 0 && s <= 1 && t >= 0 && t <= 1);
-}
-
-// 计算两条线段的交点
-const getLineSegmentIntersection = (p1: Vector3, p2: Vector3, p3: Vector3, p4: Vector3, tolerance = 1e-6) => {
-  // 计算向量
-  const r = new Vector3().subVectors(p2, p1);
-  const s = new Vector3().subVectors(p4, p3);
-  const w0 = new Vector3().subVectors(p1, p3);
-
-  // 计算系数
-  const a = r.dot(r);
-  const b = r.dot(s);
-  const c = s.dot(s);
-  const d = r.dot(w0);
-  const e = s.dot(w0);
-
-  const denominator = a * c - b * b;
-
-  // 如果 denominator 接近0，则线条平行或共线
-  if (Math.abs(denominator) < tolerance) {
-    return null; // 无唯一交点
-  }
-
-  // 求参数 t 和 s
-  const t = (b * e - c * d) / denominator;
-  const sParam = (a * e - b * d) / denominator;
-
-  // 检查参数是否在 [0,1] 内
-  if (t < 0 || t > 1 || sParam < 0 || sParam > 1) {
-    return null; // 线段延长线相交，但线段本身不相交
-  }
-
-  // 计算两条直线上的对应点
-  const P = p1.clone().add(r.clone().multiplyScalar(t));
-  const Q = p3.clone().add(s.clone().multiplyScalar(sParam));
-
-  // 如果两点足够接近，则认为交于该点
-  if (P.distanceTo(Q) > tolerance) {
-    return null; // 两条直线最近点距离较大，认为没有交点
-  }
-
-  // 返回交点
-  return P;
-}
-
-// 相交
-const intersectPlane = (triangle: Vector3[], vertices: Vector3[]) => {
-  const plane = new Plane().setFromCoplanarPoints(vertices[0], vertices[1], vertices[2])
-
-  const l1 = new Line3(triangle[0], triangle[1])
-  const l2 = new Line3(triangle[0], triangle[2])
-  const l3 = new Line3(triangle[1], triangle[2])
-
-  const p1 = plane.intersectLine(l1, new Vector3())
-  const p2 = plane.intersectLine(l2, new Vector3())
-  const p3 = plane.intersectLine(l3, new Vector3())
-
-  let line: Vector3[] = []
-  p1 && line.push(p1)
-  p2 && line.push(p2)
-  p3 && line.push(p3)
-
-  // const box = new Box3().setFromPoints(vertices)
-  // const boxHelper = new Box3Helper(box)
-  // scene.add(boxHelper)
-
-  // 有交点
-  if (line.length == 2 && line.some(l => isPointInParallelogram(l, vertices))) {
-    let pointers = [...line];
-    const container = line.find(l => isPointInParallelogram(l, vertices))
-    const unContainer = line.find(l => !isPointInParallelogram(l, vertices))
-    if (
-        container && unContainer
-    ) {
-      for (let i = 0; i < vertices.length; i++) {
-        const p1 = vertices[i];
-        const p2 = vertices[(i + 1) % vertices.length]; // 下一个顶点
-        const intersection = getLineSegmentIntersection(line[0], line[1], p1, p2);
-        if (intersection) {
-          pointers = [container, intersection]
-        }
-      }
-    }
-
-    const geometry = new BufferGeometry().setFromPoints(pointers)
-    // const randomColor = Math.floor(Math.random() * 0xffffff);
-    const material = new LineBasicMaterial({
-      // color: randomColor,
-      color: 0xfff00,
-      linewidth: 1
-    });
+  group.forEach(points => {
+    const geometry = createPlanarGeometry(points)
 
     // 连线
-    const mesh = new Line(geometry, material);
+    const mesh =
+    points.length > 3 ?
+        new Mesh(geometry, material) :
+        new Line(geometry, lineMaterial)
+
     scene.add(mesh);
-  }
-}
-
-const calc = (vertices: Vector3[]) => {
-  // 获取顶点位置和索引
-  const positions = geometry.attributes.position.array; // 顶点坐标数组
-  const indices = geometry.index?.array || []; // 面索引数组
-
-  for (let i = 0; i < indices.length; i += 3) {
-    const a = indices[i];     // 第一个顶点的索引
-    const b = indices[i + 1]; // 第二个顶点的索引
-    const c = indices[i + 2]; // 第三个顶点的索引
-
-    // 获取三个顶点的坐标
-    const v1 = new Vector3(
-        positions[a * 3],     // x
-        positions[a * 3 + 1], // y
-        positions[a * 3 + 2]  // z
-    );
-    const v2 = new Vector3(
-        positions[b * 3],     // x
-        positions[b * 3 + 1], // y
-        positions[b * 3 + 2]  // z
-    );
-    const v3 = new Vector3(
-        positions[c * 3],     // x
-        positions[c * 3 + 1], // y
-        positions[c * 3 + 2]  // z
-    );
-    intersectPlane([v1, v2, v3], vertices)
-  }
+  })
 }
 
 const init = () => {
