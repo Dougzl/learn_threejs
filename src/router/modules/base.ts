@@ -90,5 +90,14 @@ export const baseRoute: RouteRecordRaw = {
             lesson: "09",
             keys: ["intersect"],
         },
+    },{
+        path: "/base/10",
+        name: "base10",
+        component: () => import("@/views/base/base10.vue"),
+        meta: {
+            label: "异步Canvas",
+            lesson: "10",
+            keys: ["OffscreenCanvas"],
+        },
     },]
 }

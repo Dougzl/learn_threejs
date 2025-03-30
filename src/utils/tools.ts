@@ -92,6 +92,8 @@ export const createPlanarGeometry = (vertices: Vector3[]) => {
         return new BufferGeometry().setFromPoints(vertices);
     }
 
+    vertices.push(vertices[0])
+
     // 2. 投影到二维平面（自动处理倾斜）
     const points2D = projectTo2D(vertices);
 

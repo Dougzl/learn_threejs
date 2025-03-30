@@ -161,6 +161,21 @@ function connectLines(lines: Line3[], epsilon = 1e-5) {
     return result;
 }
 
+const sameLine = (l: Line3, line: Line3, epsilon = 1e-6): boolean => {
+    if (
+        l.start.distanceTo(line.start) < epsilon
+        && l.end.distanceTo(line.end) < epsilon
+    )
+        return true
+    else if (
+        l.end.distanceTo(line.start) < epsilon
+        && l.start.distanceTo(line.end) < epsilon
+    )
+        return true
+
+    return false;
+}
+
 export const intersect =
     (geometry: SphereGeometry, vertices: Vector3[]): Vector3[][] => {
     // 获取顶点位置和索引
@@ -210,7 +225,8 @@ export const intersect =
                     }
                 }
             }
-            if (line.distance() > 1e-6)
+            if (line.distance() > 1e-6
+                && !lines.some(l => sameLine(l, line)))
                 lines.push(line)
         }
     }
